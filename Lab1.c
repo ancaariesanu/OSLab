@@ -14,22 +14,22 @@ void print_menu_regfile(const char *path, struct stat st){
     switch (mode){
     case 'n':
         printf("You choose to print the link name\n");
-        printf("Name: %s", path);
+        
         break;
     
     case 'l':
        printf("You choose to delete link\n");
-       printf("%d",st.st_size)
+       
        break;
 
     case 'd':
         printf("You choose to print the size of the link\n");
-        printf("%d",st.st_nlink)
+        
         break;
 
     case 't': 
         printf("You choose to print the size of the target\n");
-        printf("%d",st.st_mtime)
+        
         break;
 
     case 'a':
