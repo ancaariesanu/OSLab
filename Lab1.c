@@ -5,8 +5,8 @@
 
 #define MAX_PATH_LENGHT 1024
 
-void print_menu_regfile(const char *path, struct stat st){
-    char mode;
+void print_menu_link(const char *path, struct stat st){
+    char mode; struct stat targeted_file;
     do{
         printf("Choose what option do you want:\n n-file name\n l-delete link\n d-size of the link\n t-size of the target\n a-access rights\n ");
         scanf("%s", &mode);
@@ -14,22 +14,30 @@ void print_menu_regfile(const char *path, struct stat st){
     switch (mode){
     case 'n':
         printf("You choose to print the link name\n");
-        
+        printf("Name of the file: %s\n", path);
         break;
     
     case 'l':
        printf("You choose to delete link\n");
-       
+       if(unlink(path)==-1) {
+            exit(1);
+            }
+            else {
+                printf("Successfully delete the symbolic link\n");
+            }
        break;
 
     case 'd':
         printf("You choose to print the size of the link\n");
-        
+        printf("Size of the symbolic link: %ld\n", st.st_size);
         break;
 
     case 't': 
         printf("You choose to print the size of the target\n");
-        
+        if(stat(path, &targeted_file)==-1) {
+                exit(1);
+            }
+        printf("Size of the targeted file: %ld\n", targeted_file.st_size);
         break;
 
     case 'a':
@@ -224,7 +232,7 @@ int main(int argc, char* argv[]){
         }
         if(S_ISLNK(st.st_mode)){
             printf("%s is a symbolic link. \n", path, st);
-            //print_menu_link(path, st);
+            print_menu_link(path, st);
         }
     }
     return 0;
