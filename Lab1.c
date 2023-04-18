@@ -331,11 +331,11 @@ int main(int argc, char* argv[]){
         }
         if(S_ISDIR(st.st_mode)){
             printf("%s is a directory. \n", path);
-            //print_menu_dir(path,st);
+            print_menu_dir(path,st, dir);
         }
         if(S_ISLNK(st.st_mode)){
             printf("%s is a symbolic link. \n", path);
-            print_menu_link(path, st, dir);
+            print_menu_link(path, st);
         }
     }
     return 0;
