@@ -1,7 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
+#include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <dirent.h>
+#include <errno.h>
+#include <time.h>
 
 #define MAX_PATH_LENGHT 1024
 
@@ -317,25 +323,88 @@ int main(int argc, char* argv[]){
         exit(1);
     }
     for(int i=0;i<argc; i++){
-        char path[MAX_PATH_LENGHT];
+        char *path=argv[i];
         struct stat st;
         struct dirent *dir;
-
+        
         if(lstat(path, &st)==-1){
             perror("There is a problem at lstat");
             continue;
         }
-        if(S_ISREG(st.st_mode)){
-            printf("%s is a regular file. \n", path);
-            print_menu_regfile(path, st);
-        }
-        if(S_ISDIR(st.st_mode)){
-            printf("%s is a directory. \n", path);
-            print_menu_dir(path,st, dir);
-        }
-        if(S_ISLNK(st.st_mode)){
-            printf("%s is a symbolic link. \n", path);
-            print_menu_link(path, st);
+        switch (st.st_mode & S_IFMT){
+            case S_IFREG:
+                printf("%s is a regular file. \n", path);
+                //print_menu_regfile(path, st);
+                pid_t pid_reg=fork();
+                if(pid_reg<0){
+                    perror("There is a problem with with creating the process for the regular file");
+                    exit(1);
+                }
+                else if(pid_reg==0){
+                    print_menu_regfile(path, st);
+                    exit(0);
+                }
+                else{
+                    if(path[strlen(path)-1]=='c'&&path[strlen(path)-2]=='.'){
+                        pid_t pid_script=fork();
+                        if(pid_script<0){
+                            perror("There is a problem with the second child from regular file");
+                            exit(1);
+                        }
+                        else if(pid_script==0){
+                            
+                        }
+                        else{
+
+                        }
+                    }
+                    
+                }
+                break;
+            case S_IFDIR:
+                printf("%s is a directory. \n", path);
+                //print_menu_dir(path[i],st, dir);
+                pid_t pid_dir=fork();
+                if(pid_dir<0){
+                    perror("There is a problem with with creating the process for the directory");
+                    exit(1);
+                }
+                else if(pid_dir==0){
+                    print_menu_dir(path,st, dir);
+                    exit(0);
+                }
+                else{
+                    //code executed by the parent
+                    pid_t pid_script=fork();
+                    if(pid_script<0){
+                        perror("There is a problem with the second child from directory");
+                        exit(1);
+                    }
+                    else if(pid_script==0){
+
+                    }
+                    else{
+                        
+                    }
+                }
+                break;
+            case S_IFLNK:
+                printf("%s is a symbolic link. \n", path);
+                //print_menu_link(path, st);
+                pid_t pid_lnk=fork();
+                if(pid_lnk<0){
+                    perror("There is a problem with with creating the process for the symbolic link");
+                    exit(1);
+                }
+                else if(pid_lnk==0){
+                    print_menu_link(path, st);
+                    exit(0);
+                }
+                else{
+                    pid_t w_link=waitpid(pid_lnk,0);
+                    exit(EXIT_SUCCESS);
+                }
+                break;
         }
     }
     return 0;
