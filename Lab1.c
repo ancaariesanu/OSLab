@@ -11,12 +11,12 @@
 
 #define MAX_PATH_LENGHT 1024
 
-void print_menu_dir(const char *path, struct stat st, struct dirent *d){
-    char mode;
+void print_menu_dir(const char *path, struct stat st){
+    char* mode;
     do{
         printf("Choose what option do you want:\n n-file name\n d-size of the directory\n a-access rights\n c-total number of files with the C extension");
         scanf("%s", &mode);
-    }while(strcmp(mode, "n")==0 ||strcmp(mode, "d")==0 || strcmp(mode, "a")==0 || strcmp(mode, "c")==0);
+    }while(strcmp(mode, 'n')==0 ||strcmp(mode, 'd')==0 || strcmp(mode, 'a')==0 || strcmp(mode, 'c')==0);
     switch (mode){
     case 'n':
         printf("You choose to print the directory name\n");
@@ -30,60 +30,60 @@ void print_menu_dir(const char *path, struct stat st, struct dirent *d){
 
     case 'a':
         printf("You choose to print the access rights\n");
-        printf("User:\n")
-        if(stat.st_mode & S_IRUSR){
+        printf("User:\n");
+        if(st.st_mode & S_IRUSR){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWUSR){
+        if(st.st_mode & S_IWUSR){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXUSR){
+        if(st.st_mode & S_IXUSR){
             printf("Execute-yes\n");
         }
         else{
             printf("Execute-no\n");
         }
 
-        printf("Group:\n")
-        if(stat.st_mode & S_IRGRP){
+        printf("Group:\n");
+        if(st.st_mode & S_IRGRP){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWGRP){
+        if(st.st_mode & S_IWGRP){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXGRP){
+        if(st.st_mode & S_IXGRP){
             printf("Execute-yes\n");
         }
         else{
             printf("Execute-no\n");
         }
 
-        printf("Other:\n")
-        if(stat.st_mode & S_S_IROTH){
+        printf("Other:\n");
+        if(st.st_mode & S_IROTH){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWOTH){
+        if(st.st_mode & S_IWOTH){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXOTH){
+        if(st.st_mode & S_IXOTH){
             printf("Execute-yes\n");
         }
         else{
@@ -91,15 +91,16 @@ void print_menu_dir(const char *path, struct stat st, struct dirent *d){
         }
         break;
 
-    case 'd':
+    case 'c':
         printf("You choose to print the total number of files with the C extension\n");
-        int counter=0; DIR* dir;
+        int counter=0; DIR* d;
+        struct dirent* dir;
         char* extension=".c";
-        if((dir=opendir("."))!=NULL){
+        if((d=opendir("."))!=NULL){
             while((dir=readdir(d))!=NULL){
                 if(strstr(dir->d_name, extension)!=NULL) counter++;
             }
-            closedir(dir);
+            closedir(d);
             printf("Number of files with C extension is %d\n", counter);
         }
         else{
@@ -118,7 +119,7 @@ void print_menu_link(const char *path, struct stat st){
     do{
         printf("Choose what option do you want:\n n-file name\n l-delete link\n d-size of the link\n t-size of the target\n a-access rights\n ");
         scanf("%s", &mode);
-    }while(strcmp(mode, "n")==0 || strcmp(mode, "l")==0 || strcmp(mode, "d")==0 || strcmp(mode, "t")==0 || strcmp(mode, "a")==0);
+    }while(strcmp(mode, 'n')==0 || strcmp(mode, 'l')==0 || strcmp(mode, 'd')==0 || strcmp(mode, 't')==0 || strcmp(mode, 'a')==0);
     switch (mode){
     case 'n':
         printf("You choose to print the link name\n");
@@ -150,60 +151,60 @@ void print_menu_link(const char *path, struct stat st){
 
     case 'a':
         printf("You choose to print the access rights\n");
-        printf("User:\n")
-        if(stat.st_mode & S_IRUSR){
+        printf("User:\n");
+        if(st.st_mode & S_IRUSR){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWUSR){
+        if(st.st_mode & S_IWUSR){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXUSR){
+        if(st.st_mode & S_IXUSR){
             printf("Execute-yes\n");
         }
         else{
             printf("Execute-no\n");
         }
 
-        printf("Group:\n")
-        if(stat.st_mode & S_IRGRP){
+        printf("Group:\n");
+        if(st.st_mode & S_IRGRP){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWGRP){
+        if(st.st_mode & S_IWGRP){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXGRP){
+        if(st.st_mode & S_IXGRP){
             printf("Execute-yes\n");
         }
         else{
             printf("Execute-no\n");
         }
 
-        printf("Other:\n")
-        if(stat.st_mode & S_S_IROTH){
+        printf("Other:\n");
+        if(st.st_mode & S_IROTH){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWOTH){
+        if(st.st_mode & S_IWOTH){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXOTH){
+        if(st.st_mode & S_IXOTH){
             printf("Execute-yes\n");
         }
         else{
@@ -221,7 +222,7 @@ void print_menu_regfile(const char *path, struct stat st){
     do{
         printf("Choose what option do you want:\n n-file name\n d-dimension/size\n h-number of hard links\n m-time of last modification\n a-access rights\n l-create a symbolic link\n");
         scanf("%s", &mode);
-    }while(strcmp(mode, "n")==0 || strcmp(mode, "d")==0 || strcmp(mode, "h")==0 || strcmp(mode, "m")==0 || strcmp(mode, "a")==0 || strcmp(mode, "l")==0 );
+    }while(strcmp(mode, 'n')==0 || strcmp(mode, 'd')==0 || strcmp(mode, 'h')==0 || strcmp(mode, 'm')==0 || strcmp(mode, 'a')==0 || strcmp(mode, 'l')==0 );
     switch (mode){
     case 'n':
         printf("You choose to print the name of the regular file\n");
@@ -230,75 +231,75 @@ void print_menu_regfile(const char *path, struct stat st){
     
     case 'd':
        printf("You choose to print the size of the regular file\n");
-       printf("%d",st.st_size)
+       printf("%ld",st.st_size);
        break;
 
     case 'h':
         printf("You choose to print the number of the hard links of the regular file\n");
-        printf("%d",st.st_nlink)
+        printf("%ld",st.st_nlink);
         break;
 
     case 'm': 
         printf("You choose to print the last time of modification of the regular file\n");
-        printf("%d",st.st_mtime)
+        printf("%ld",st.st_mtime);
         break;
 
     case 'a':
         printf("You choose to print the access rights of the regular file\n");
-        printf("User:\n")
-        if(stat.st_mode & S_IRUSR){
+        printf("User:\n");
+        if(st.st_mode & S_IRUSR){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWUSR){
+        if(st.st_mode & S_IWUSR){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXUSR){
+        if(st.st_mode & S_IXUSR){
             printf("Execute-yes\n");
         }
         else{
             printf("Execute-no\n");
         }
 
-        printf("Group:\n")
-        if(stat.st_mode & S_IRGRP){
+        printf("Group:\n");
+        if(st.st_mode & S_IRGRP){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWGRP){
+        if(st.st_mode & S_IWGRP){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXGRP){
+        if(st.st_mode & S_IXGRP){
             printf("Execute-yes\n");
         }
         else{
             printf("Execute-no\n");
         }
 
-        printf("Other:\n")
-        if(stat.st_mode & S_S_IROTH){
+        printf("Other:\n");
+        if(st.st_mode & S_IROTH){
             printf("Read-yes\n");
         }
         else{
             printf("Read-no\n");
         }
-        if(stat.st_mode & S_IWOTH){
+        if(st.st_mode & S_IWOTH){
             printf("Write-yes\n");
         }
         else{
             printf("Write-no\n");
         }
-        if(stat.st_mode & S_IXOTH){
+        if(st.st_mode & S_IXOTH){
             printf("Execute-yes\n");
         }
         else{
@@ -325,7 +326,6 @@ int main(int argc, char* argv[]){
     for(int i=0;i<argc; i++){
         char *path=argv[i];
         struct stat st;
-        struct dirent *dir;
         
         if(lstat(path, &st)==-1){
             perror("There is a problem at lstat");
@@ -352,7 +352,8 @@ int main(int argc, char* argv[]){
                             exit(1);
                         }
                         else if(pid_script==0){
-                            
+                            execlp("gcc", "gcc", "-Wall", path, NULL);
+                            exit(0);
                         }
                         else{
 
@@ -363,14 +364,14 @@ int main(int argc, char* argv[]){
                 break;
             case S_IFDIR:
                 printf("%s is a directory. \n", path);
-                //print_menu_dir(path[i],st, dir);
+                //print_menu_dir(path[i],st);
                 pid_t pid_dir=fork();
                 if(pid_dir<0){
                     perror("There is a problem with with creating the process for the directory");
                     exit(1);
                 }
                 else if(pid_dir==0){
-                    print_menu_dir(path,st, dir);
+                    print_menu_dir(path,st);
                     exit(0);
                 }
                 else{
