@@ -8,6 +8,8 @@
 #include <dirent.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define MAX_PATH_LENGHT 1024
 
@@ -73,65 +75,73 @@ void print_access_rights(const char *path, struct stat st){
     }
 }
 
+/*void parse_file(const char *path){
+    FILE* f=fopen(path, "r"){
+        
+    }
+}*/
 
+//aici merge, copiaza pentru directory si pentru symbolic
 void print_menu_regfile(const char *path, struct stat st){
-    char mode[10];
-    char letters_reg[6]="ndhmal";
+    char option[10]; int ok=1;
+    char letters_reg[7]="-ndhmal";
     printf("Choose what option do you want:\n n-file name\n d-dimension/size\n h-number of hard links\n m-time of last modification\n a-access rights\n l-create a symbolic link\n");
-    scanf("%s", mode);
-    for(int i=0;i<strlen(mode);i++){
-        if(strchr(letters_reg,mode[i])==NULL){
-            printf("You entered a command that is not in the command menu\n");
-            print_menu_regfile(path,st);
+    scanf("%s", option);
+    for(int i=0;i<strlen(option);i++){
+        if(strchr(letters_reg,option[i])==NULL){
+            //printf("You entered a command that is not in the command menu\n");
+            //print_menu_regfile(path,st);
+            ok=0;
         }
     }
-    for(int i=0;i<strlen(mode);i++){
-        switch (mode[i]){
-        case 'n':
-            printf("You choose to print the name of the regular file\n");
-            printf("Name: %s", path);
-            break;
-        
-        case 'd':
-        printf("You choose to print the size of the regular file\n");
-        printf("%ld",st.st_size);
-        break;
-
-        case 'h':
-            printf("You choose to print the number of the hard links of the regular file\n");
-            printf("%ld",st.st_nlink);
-            break;
-
-        case 'm': 
-            printf("You choose to print the last time of modification of the regular file\n");
-            printf("%ld",st.st_mtime);
+    if(ok==0){
+        printf("Invalid option\n");
+    }
+    if(ok==1 && option[0]=='-'){
+        for(int i=0;i<strlen(option);i++){
+            switch (option[i]){
+            case 'n':
+                printf("You choose to print the name of the regular file\n");
+                printf("Name: %s", path);
+                break;
+            
+            case 'd':
+            printf("You choose to print the size of the regular file\n");
+            printf("%ld",st.st_size);
             break;
 
-        case 'a':
-            printf("You choose to print the access rights\n");
-            print_access_rights(path,st);
-            break;
+            case 'h':
+                printf("You choose to print the number of the hard links of the regular file\n");
+                printf("%ld",st.st_nlink);
+                break;
 
-        case 'l':
-            printf("You choose to create a symbolic link of the regular file\n");
-            const char *new_path;
-            new_path = (char*) malloc(10*sizeof(char));
-            symlink(path, new_path);
-            break;
+            case 'm': 
+                printf("You choose to print the last time of modification of the regular file\n");
+                printf("%ld",st.st_mtime);
+                break;
 
-        default:
-            break;
+            case 'a':
+                printf("You choose to print the access rights\n");
+                print_access_rights(path,st);
+                break;
+
+            case 'l':
+                printf("You choose to create a symbolic link of the regular file\n");
+                const char *new_path;
+                new_path = (char*) malloc(10*sizeof(char));
+                symlink(path, new_path);
+                break;
+
+            default:
+                break;
+            }
         }
     }
 }
 
 void print_menu_dir(const char *path, struct stat st){
     
-    printf("Choose what option do you want:\n 
-    n-file name\n 
-    d-size of the directory\n 
-    a-access rights\n 
-    c-total number of files with the C extension");
+    printf("Choose what option do you want:\n n-file name\n d-size of the directory\n a-access rights\n c-total number of files with the C extension");
     char option[10];
     scanf("%s", option);
     char letters_dir[4]="ndac";
@@ -236,41 +246,39 @@ void print_menu_link(const char *path, struct stat st){
 
 
 void handle_regfile(const char *path, struct stat st){
-    int status, child_status;
+    //int child_status;
     printf("%s is a regular file. \n", path);
     pid_t pid_reg=fork();
     if(pid_reg<0){
         perror("There is a problem with with creating the process for the regular file");
-        exit(1);
-        }
+        exit(99);
+    }
     else if(pid_reg==0){
-        print_menu_regfile(path, st);
-        exit(0);
+        print_menu_regfile(path,st);
+        exit(11);
     }
     else{
-        if(path[strlen(path)-1]=='c' && path[strlen(path)-2]=='.'){
-            pid_t pid_reg2 = fork();
+        pid_t pid_reg2 = fork();
+        if(path[strlen(path)-1]=='c' && path[strlen(path)-2]=='.'){ 
             if(pid_reg2<0){
                 perror("Error at the second fork in the regular file section");
                 exit(EXIT_FAILURE);
             } 
             else if (pid_reg2 == 0){
-                execlp("gcc", "gcc", "-Wall", path, NULL);
+                execlp("/bin/bash", "/bin/bash", "/mnt/c/Users/ancaa/Desktop/OSLab/OSLab/error_counter.sh", "arg1", NULL);
                 exit(EXIT_SUCCESS);
             } 
-            else{
-                waitpid(pid_reg2, &child_status, 0);
-                if (WIFEXITED(child_status)) {
-                    printf("Child process exited with status %d\n", WEXITSTATUS(child_status));
-                }
-            }
         }
+        /*else{
+           
+        }*/
     }
 }
 
 void handle_dir(const char *path, struct stat st){
     printf("%s is a directory. \n", path);
-    pid_t pid_dir=fork();            
+    pid_t pid_dir=fork();    
+    //int status_dir;        
     if(pid_dir<0){
         perror("There is a problem with with creating the process for the directory");
         exit(1);
@@ -288,16 +296,17 @@ void handle_dir(const char *path, struct stat st){
         else if(pid_script==0){
             print_menu_dir(path,st);
         }
-        else{
-            pid_t w_link=waitpid(pid_lnk,0);
+        /*else{
+            pid_t w_link=wait(&status_dir);
             exit(EXIT_SUCCESS);
-        }
+        }*/
     }    
 }
 
 void handle_sym(const char *path, struct stat st){
     printf("%s is a symbolic link. \n", path);
     pid_t pid_lnk=fork();
+    //int status_sym;
     if(pid_lnk<0){
         perror("There is a problem with with creating the process for the symbolic link");
         exit(1);
@@ -306,10 +315,10 @@ void handle_sym(const char *path, struct stat st){
         print_menu_link(path, st);
         exit(0);
     }
-    else{
-        pid_t w_link=waitpid(pid_lnk,0);
+    /*else{
+        pid_t w_link=wait(&status_sym);
         exit(EXIT_SUCCESS);
-    }
+    }*/
 }
 
 int main(int argc, char* argv[]){
@@ -317,7 +326,7 @@ int main(int argc, char* argv[]){
         perror("There are not enough arguments");
         exit(1);
     }
-    for(int i=0;i<argc; i++){
+    for(int i=1;i<argc; i++){
         char *path=argv[i];
         struct stat st;
         
@@ -333,7 +342,7 @@ int main(int argc, char* argv[]){
                 handle_dir(path,st);
                 break;
             case S_IFLNK:
-                handle_dir(path, st);
+                handle_sym(path, st);
                 break;
         }
     }

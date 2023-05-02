@@ -4,12 +4,6 @@ then
     exit 1
 fi
  
-if ! test -f "$1" || test -h "$1" 
-then
-    echo "$1 is not a c file"
-    exit 1
-fi
- 
 output_gcc=$(gcc -Wall -Wextra "$1" 2>&1)
 exit_code=$?
  
@@ -20,6 +14,7 @@ then
  
     echo "Number of errors $errors"
     echo "Number of warnings $warnings"
+
 else
     echo "OK"
 fi 
