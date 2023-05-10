@@ -13,6 +13,7 @@
 
 
 #define MAX_PATH_LENGHT 1024
+#define NUMBER_OF_COMMANDS 10
 
 //helping functions
 void print_error_distribution(){
@@ -30,22 +31,39 @@ void print_error_distribution(){
     printf("\n");
 }
 
-//check type of input
-void check_type(char *path){
+//check type of input && reenter commands && get_commands
+char* get_commands() {
+    char *commands;
+    commands = (char*) malloc(NUMBER_OF_COMMANDS*sizeof(char));
+    if(commands==NULL) {
+        printf("Error malloc() for the commands string in get_commands\n");
+        exit(1);
+    }
+    printf("Please insert the options: ");
+    scanf("%s", commands);
+
+    return commands;
+}
+
+void reset_commands(char path[]) {
+    printf("\n\nRenter the commands:\n");
+    check_type(path);
+}
+
+void check_type(char path[]){  
     struct stat st;
-        
     if(lstat(path, &st)==-1){
         perror("There is a problem at lstat");
     }
     switch (st.st_mode & S_IFMT){
         case S_IFREG:
-            handle_regfile(path,st);
+            handle_regfile(path);
             break;
         case S_IFDIR:
-            handle_dir(path,st);
+            handle_dir(path);
             break;
         case S_IFLNK:
-            handle_sym(path, st);
+            handle_sym(path);
             break;
         default: 
             printf("The file is an unknown one\n");
@@ -54,69 +72,22 @@ void check_type(char *path){
 }
 
 //permission part
-void print_access_rights(const char *path, struct stat st){
+void print_access_rights(mode_t mode){
     printf("User:\n");
-    if(st.st_mode & S_IRUSR){
-        printf("Read-yes\n");
-    }
-    else{
-        printf("Read-no\n");
-    }
-    if(st.st_mode & S_IWUSR){
-        printf("Write-yes\n");
-    }
-    else{
-        printf("Write-no\n");
-    }
-    if(st.st_mode & S_IXUSR){
-        printf("Execute-yes\n");
-    }
-    else{
-        printf("Execute-no\n");
-    }
-
+    printf("Read - %s\n", ((mode & S_IRUSR)!=0) ? "Yes" : "No");
+    printf("Write - %s\n", ((mode & S_IWUSR)!=0) ? "Yes" : "No");
+    printf("Exec - %s\n", ((mode & S_IXUSR)!=0) ? "Yes" : "No");
     printf("Group:\n");
-    if(st.st_mode & S_IRGRP){
-        printf("Read-yes\n");
-    }
-    else{
-        printf("Read-no\n");
-    }
-    if(st.st_mode & S_IWGRP){
-        printf("Write-yes\n");
-    }
-    else{
-        printf("Write-no\n");
-    }
-    if(st.st_mode & S_IXGRP){
-        printf("Execute-yes\n");
-    }
-    else{
-        printf("Execute-no\n");
-    }
-
-    printf("Other:\n");
-    if(st.st_mode & S_IROTH){
-        printf("Read-yes\n");
-    }
-    else{
-        printf("Read-no\n");
-    }
-    if(st.st_mode & S_IWOTH){
-        printf("Write-yes\n");
-    }
-    else{
-        printf("Write-no\n");
-    }
-    if(st.st_mode & S_IXOTH){
-        printf("Execute-yes\n");
-    }
-    else{
-        printf("Execute-no\n");
-    }
+    printf("Read - %s\n", ((mode & S_IRGRP)!=0) ? "Yes" : "No");
+    printf("Write - %s\n", ((mode & S_IWGRP)!=0) ? "Yes" : "No");
+    printf("Exec - %s\n", ((mode & S_IXGRP)!=0) ? "Yes" : "No");
+    printf("Others:\n");
+    printf("Read - %s\n", ((mode & S_IROTH)!=0) ? "Yes" : "No");
+    printf("Write - %s\n", ((mode & S_IWOTH)!=0) ? "Yes" : "No");
+    printf("Exec - %s\n", ((mode & S_IXOTH)!=0) ? "Yes" : "No");
 }
 
-void change_permissions(const char *path) {
+void change_permissions(char path[]) {
     mode_t permissions = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP;
     int changed = chmod(path, permissions);
 
@@ -127,7 +98,7 @@ void change_permissions(const char *path) {
 }
 
 //C-file part
-void c_file(const char *path) {
+void c_file(char path[]) {
     if(path[strlen(path)-1]=='c' && path[strlen(path)-2]=='.') {
         int no_errors = 0;
         int no_warnings = 0;
@@ -170,13 +141,13 @@ void c_file(const char *path) {
         close(fd);
     }
     else {
-        int lines = count_lines(path);
+        int lines=count_lines(path)+1;
         printf("Number of lines: %d\n", lines);
     }
     
 }
 
-int count_lines(const char *path) {
+int count_lines(char path[]) {
     FILE *f=fopen(path, "r");
     if(f==NULL) {
         printf("Error at opening file\n");
@@ -191,11 +162,12 @@ int count_lines(const char *path) {
         }
         c=fgetc(f);
     }
-    return no_lines+1;
+    return no_lines;
+    printf("\n\n\n---------no_of_lines=%d\n\n\n", no_lines);
 }
 
 //directories part
-void create_new_file(const char *name) {
+void create_new_file(char name[]) {
     char file_name[100];
     char path[150];
 
@@ -243,143 +215,126 @@ void menu_symbolic_link() {
 }
 
 //execute commands
-void options_regfile(const char *path, struct stat st){
-    char option[10]; int ok=1;
-    char letters_reg[7]="-ndhmal";
-    menu_regular_file();
-    scanf("\nThe command introduced by the user: %s", option);
-    printf("\n");
-    for(int i=0;i<strlen(option);i++){
-        if(strchr(letters_reg,option[i])==NULL){
-            ok=0;
+void options_regfile(char path[],  char commands[NUMBER_OF_COMMANDS]){
+    struct stat st;
+    if(stat(path, &st)==-1) {
+        printf("Error stat() for regular file in options_regularfile\n");
+        exit(1);
+    }
+
+    char letters[6]="ndhmal";
+    for(int i=1;i<strlen(commands);i++) {
+        if(strchr(letters, commands[i])==NULL) {
+            printf("You entered a command that is not in the options menu\n");
+            reset_commands(path);
         }
     }
-    if(ok==0){
-        printf("Invalid option\n");
-        break;
-    }
-    if(ok==1 && option[0]=='-'){
-        for(int i=0;i<strlen(option);i++){
-            switch (option[i]){
-            case 'n':
-                printf("You choose to print the name of the regular file\n");
-                printf("Name: %s\n", path);
-                break;
-            
-            case 'd':
-            printf("You choose to print the size of the regular file\n");
-            printf("%ld\n",st.st_size);
-            break;
 
-            case 'h':
-                printf("You choose to print the number of the hard links of the regular file\n");
-                printf("%ld\n",st.st_nlink);
-                break;
-
-            case 'm': 
-                printf("You choose to print the last time of modification of the regular file\n");
-                printf("%ld\n",st.st_mtime);
-                printf("\n");
-                break;
-
-            case 'a':
-                printf("You choose to print the access rights\n");
-                print_access_rights(path,st);
-                printf("\n");
-                break;
-
-            case 'l':
-                printf("You choose to create a symbolic link of the regular file\n");
-                const char *new_path;
-                new_path = (char*) malloc(10*sizeof(char));
-                symlink(path, new_path);
-                printf("\n");
-                break;
-
-            default:
-                break;
-            }
-        }
-    }
-}
-
-void options_dir(const char *path, struct stat st){
-    char option[10]; int ok=1;
-    char letters_dir[5]="-ndac";
-    menu_directories();
-    scanf("\nThe command introduced by the user: %s", option);
-    printf("\n");
-    for(int i=0;i<strlen(option);i++){
-        if(strchr(letters_dir,option[i])==NULL){
-            ok=0;
-        }
-    }
-    if(ok==0){
-        printf("Invalid option\n");
-        break
-    }
-    if(ok==1 && option[0]=='-'){
-        for(int i=0;i<strlen(option);i++){
-            switch (option[i]){
-            case 'n':
-                printf("You choose to print the directory name\n");
+    for(int i=1;i<strlen(commands);i++) {
+        switch(commands[i]) {
+            case 'n': 
                 printf("Name of the file: %s\n", path);
                 break;
-
-            case 'd':
-                printf("You choose to print the size of the directory\n");
-                printf("Size of the directory: %ld\n", st.st_size);
+            case 'd': 
+                printf("Size: %ld\n", st.st_size);
                 break;
-
-            case 'a':
-                printf("You choose to print the access rights\n");
-                print_access_rights(path,st);
-                printf("\n");
+            case 'h': 
+                printf("Hard link count: %ld\n", st.st_nlink);
                 break;
-
-            case 'c':
-                printf("You choose to print the total number of files with the C extension\n");
-                int counter=0; DIR* d;
-                struct dirent* dir;
-                char* extension=".c";
-                if((d=opendir("."))!=NULL){
-                    while((dir=readdir(d))!=NULL){
-                        if(strstr(dir->d_name, extension)!=NULL) counter++;
-                    }
-                    closedir(d);
-                    printf("Number of files with C extension is %d\n", counter);
+            case 'm':
+                printf("Time of last modification: %s", ctime(&st.st_mtime));
+                break;
+            case 'a': 
+                print_access_rights(st.st_mode);
+                break;
+            case 'l': 
+                printf("Please enter the name of the link: ");
+                char link_name[20];
+                scanf("%s", link_name);
+                if(symlink(path, link_name)==0) {
+                    printf("Link created succesfully\n");
                 }
-                else{
-                    perror("Couldn't open the directory\n");
-                
+                else {
+                    printf("Error creating the symlink\n");
+                    exit(1);
                 }
                 break;
-
-            default:
-                break;
-            }
         }
     }
 }
 
-void options_sym(const char *path, struct stat st){
-    char option[10]; int ok=1; struct stat targeted_file;
-    char letters_link[6]="-nldta";
-    menu_symbolic_link();
-    scanf("\nThe command introduced by the user: %s", option);
-    printf("\n");
-    for(int i=0;i<strlen(option);i++){
-        if(strchr(letters_link,option[i])==NULL){
-            ok=0;
+void options_dir(char path[], char commands[NUMBER_OF_COMMANDS]){
+    struct stat st;
+    if(stat(path, &st)==-1) {
+        printf("Error stat() for regular file in options_dir\n");
+        exit(1);
+    }
+
+    char letters[4]="ndac";
+    for(int i=1;i<strlen(commands);i++) {
+        if(strchr(letters, commands[i])==NULL) {
+            printf("You entered a command that is not in the commands menu\n");
+            reset_commands(path);
         }
     }
-    if(ok==0){
-        printf("Invalid option\n");
-        break;
+
+    for(int i=1;i<strlen(commands);i++){
+        switch (commands[i]){
+        case 'n':
+            printf("You choose to print the directory name\n");
+            printf("Name of the file: %s\n", path);
+            break;
+
+        case 'd':
+            printf("You choose to print the size of the directory\n");
+            printf("Size of the directory: %ld\n", st.st_size);
+            break;
+
+        case 'a':
+            printf("You choose to print the access rights\n");
+            print_access_rights(st.st_mode);
+            printf("\n");
+            break;
+
+        case 'c':
+            printf("You choose to print the total number of files with the C extension\n");
+            int counter=0; DIR* d;
+            struct dirent* dir;
+            char* extension=".c";
+            if((d=opendir("."))!=NULL){
+                while((dir=readdir(d))!=NULL){
+                    if(strstr(dir->d_name, extension)!=NULL) counter++;
+                }
+                closedir(d);
+                printf("Number of files with C extension is %d\n", counter);
+            }
+            else{
+                perror("Couldn't open the directory\n");        
+            }
+            break;
+
+            default:
+                break;
+        }
     }
-    if(ok==1 && option[0]=='-'){
-        for(int i=0;i<strlen(option);i++){
-            switch (option[i]){
+}
+
+
+void options_sym(char path[], char commands[NUMBER_OF_COMMANDS]){
+    struct stat st; struct stat targeted_file;
+    if(stat(path, &st)==-1) {
+        printf("Error stat() for regular file in options_\n");
+        exit(1);
+    }
+    char letters[5]="nldta";
+    for(int i=1;i<strlen(commands);i++) {
+        if(strchr(letters, commands[i])==NULL) {
+            printf("You entered a command that is not in the commands menu\n");
+            reset_commands(path);
+        }
+    }
+    for(int i=0;i<strlen(commands);i++){
+        switch (commands[i]){
             case 'n':
                 printf("You choose to print the link name\n");
                 printf("Name of the file: %s\n", path);
@@ -410,18 +365,18 @@ void options_sym(const char *path, struct stat st){
 
             case 'a':
                 printf("You choose to print the access rights\n");
-                print_access_rights(path,st);
+                print_access_rights(st.st_mode);
                 break;
 
             default:
                 break;
-            }
         }
     }
 }
 
 //handle each type 
-void handle_regfile(const char *path, struct stat st){
+void handle_regfile(char path[]){
+    char commands[NUMBER_OF_COMMANDS];
     printf("%s is a regular file. \n", path);
     pid_t pid_reg=fork();
     if(pid_reg<0){
@@ -429,10 +384,17 @@ void handle_regfile(const char *path, struct stat st){
         exit(1);
     }
     else if(pid_reg==0){
-        options_regfile(path,st);
+        menu_regular_file();
+        strcpy(commands, get_commands());
+        options_regfile(path, commands);
         exit(2);
     }
     else{
+        int wstatus;
+        pid_t w=wait(&wstatus);
+        if(WIFEXITED(wstatus)){
+            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
+        }
         pid_t pid_reg2=fork();
         if(pid_reg2<0){
             printf("error at fork() for child 1\n");
@@ -447,31 +409,34 @@ void handle_regfile(const char *path, struct stat st){
             if(WIFEXITED(wstatus2)) {
                 printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
             }
-        }
+        }   
+    }
+}
+
+void handle_dir(char path[]){
+    char commands[NUMBER_OF_COMMANDS];
+    printf("%s is a directory. \n", path);
+    pid_t pid_dir=fork();
+    if(pid_dir<0){
+        perror("There is a problem with with creating the process for the directory");
+        exit(1);
+    }
+    else if(pid_dir==0){
+        menu_directories();
+        strcpy(commands, get_commands());
+        options_dir(path, commands);
+        exit(2);
+    }
+    else{
         int wstatus;
         pid_t w=wait(&wstatus);
         if(WIFEXITED(wstatus)){
             printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
         }
-    }
-}
-
-void handle_dir(const char *path, struct stat st){
-    printf("%s is a directory. \n", path);
-    pid_t pid_dir=fork();         
-    if(pid_dir<0){
-        perror("There is a problem with with creating the process for the directory");
-        exit(4);
-    }
-    else if(pid_dir==0){
-        options_dir(path,st);
-        exit(5);
-    }
-    else{
         pid_t pid_dir2=fork();
         if(pid_dir2<0){
-            printf("Error at fork() for child 1(directories)\n");
-            exit(6);
+            printf("error at fork() for child 1\n");
+            exit(3);
         }
         else if(pid_dir2==0){
             create_new_file(path);
@@ -482,31 +447,34 @@ void handle_dir(const char *path, struct stat st){
             if(WIFEXITED(wstatus2)) {
                 printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
             }
-        }
+        }   
+    }
+}
+
+void handle_sym(char path[]){
+    char commands[NUMBER_OF_COMMANDS];
+    printf("%s is a symbolic link. \n", path);
+    pid_t pid_sym=fork();
+    if(pid_sym<0){
+        perror("There is a problem with with creating the process for the symbolic link");
+        exit(1);
+    }
+    else if(pid_sym==0){
+        menu_symbolic_link();
+        strcpy(commands, get_commands());
+        options_sym(path, commands);
+        exit(2);
+    }
+    else{
         int wstatus;
         pid_t w=wait(&wstatus);
         if(WIFEXITED(wstatus)){
             printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
         }
-    }    
-}
-
-void handle_sym(const char *path, struct stat st){
-    printf("%s is a symbolic link. \n", path);
-    pid_t pid_lnk=fork();
-    if(pid_lnk<0){
-        perror("There is a problem with with creating the parent process for the symbolic link\n");
-        exit(7);
-    }
-    else if(pid_lnk==0){
-        options_sym(path, st);
-        exit(8);
-    }
-    else{
         pid_t pid_sym2=fork();
         if(pid_sym2<0){
-        printf("Error at fork() for child 1(symbolik)\n");
-            exit(9);
+            printf("error at fork() for child 1\n");
+            exit(3);
         }
         else if(pid_sym2==0){
             change_permissions(path);
@@ -517,12 +485,7 @@ void handle_sym(const char *path, struct stat st){
             if(WIFEXITED(wstatus2)) {
                 printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
             }
-        }
-        int wstatus;
-        pid_t w=wait(&wstatus);
-        if(WIFEXITED(wstatus)){
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-        }
+        }   
     }
 }
 
@@ -533,8 +496,7 @@ int main(int argc, char* argv[]){
         exit(1);
     }
     for(int i=1;i<argc; i++){
-        char *path=argv[i];
-        check_type(path);
+        check_type(argv[i]);
     }
     return 0;
 }
