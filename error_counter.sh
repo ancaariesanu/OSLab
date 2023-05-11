@@ -12,8 +12,7 @@ then
     errors=$(echo "$output_gcc" | grep -c "error" )
     warnings=$(echo "$output_gcc" | grep -c "warning" )
  
-    echo "Number of errors $errors"
-    echo "Number of warnings $warnings"
+    echo "$errors $warnings"
 
 else
     echo "OK"

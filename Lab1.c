@@ -15,22 +15,17 @@
 #define MAX_PATH_LENGHT 1024
 #define NUMBER_OF_COMMANDS 10
 
-//helping functions
-void print_error_distribution(){
-    printf("Code: 1-handle_regfile\n");
-    printf("Code: 2-handle_regfile\n");
-    printf("Code: 3-handle_regfile\n");
-    printf("\n");
-    printf("Code: 4-handle_dir\n");
-    printf("Code: 5-handle_dir\n");
-    printf("Code: 6-handle_dir\n");
-    printf("\n");
-    printf("Code: 7-handle_sym\n");
-    printf("Code: 8-handle_sym\n");
-    printf("Code: 9-handle_sym\n");
-    printf("\n");
-}
+//am terminat -> reg_file
+//            -> symbolic link
 
+
+//prototypes
+void reset_commands(char path[]);
+void check_type(char path[]);
+int count_lines(char path[]);
+void handle_regfile(char path[]);
+void handle_dir(char path[]);
+void handle_sym(char path[]);
 //check type of input && reenter commands && get_commands
 char* get_commands() {
     char *commands;
@@ -87,65 +82,108 @@ void print_access_rights(mode_t mode){
     printf("Exec - %s\n", ((mode & S_IXOTH)!=0) ? "Yes" : "No");
 }
 
-void change_permissions(char path[]) {
+int change_permissions(char path[]) {
     mode_t permissions = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP;
     int changed = chmod(path, permissions);
+    int ok=0;
 
     if(changed == -1) {
-        printf("error at changing permissions");
+        printf("Error at changing permissions\n");
         exit(3);
     }
+    else{
+        printf("Permissions changed!\n");
+        ok=1;
+    }
+    return ok;
 }
 
-//C-file part
+//C-file part -> merge
 void c_file(char path[]) {
-    if(path[strlen(path)-1]=='c' && path[strlen(path)-2]=='.') {
-        int no_errors = 0;
-        int no_warnings = 0;
-        //create pipe
-        // execlp("bash", "bash", "compile.sh", path, NULL);
-        int score;
-        if(no_errors==0) {
-            if(no_warnings==0){
-                score=10;
+    char file_name[1024];
+    int lenght=strlen(path);
+    int count=0;
+    int cpy_lenght=lenght;
+    while(path[cpy_lenght]!='/' && cpy_lenght>=0) cpy_lenght--;
+    while(lenght!=cpy_lenght) file_name[count++]=path[++cpy_lenght];
+    int pfd[2];
+    if(pipe(pfd)<0){
+        perror("Pipe for c_file doesn't work!\n");
+        exit(1);
+    }
+    pid_t pid_reg2=fork();
+    if(pid_reg2<0){
+        perror("pid_reg2 nu e creat\n");
+        exit(2);
+    }
+    else if(pid_reg2==0){
+        if(file_name[strlen(file_name)-1]=='c' && file_name[strlen(file_name)-2]=='.') {
+            close(pfd[0]);
+            dup2(pfd[1], 1);
+            int check=execlp("bash", "bash", "error_counter.sh", file_name, NULL);
+            if(check==-1){
+                perror("Couldn't compile the .sh file\n");
+                exit(3);
             }
-            else if(no_warnings>10){
-                score=2;
-            }
-            else{
-                score=2+8*(10-no_warnings)/10;
-            }
-        } 
-        else if(no_errors>=1) {
-            score=1;
+            
         }
-        int fd=open("file_tester.txt", O_RDWR);
-        if(fd==-1) {
-            printf("error for fd()");
-            exit(3);
+        else {
+            int lines=count_lines(path)+1;
+            printf("Number of lines: %d\n", lines);
         }
-        char score_text[3];
-        score_text[0] = score/10+'0';
-        score_text[1] = score%10+'0';
-
-        char file_text[100];
-        strcpy(file_text, path);
-        strcat(file_text, " : ");
-        strcat(file_text, score_text);
-
-        int wrote=write(fd, file_text, strlen(file_text));
-        if(wrote==-1) {
-            printf("error at writting\n");
-            exit(3);
-        }
-        close(fd);
     }
     else {
-        int lines=count_lines(path)+1;
-        printf("Number of lines: %d\n", lines);
+        if(file_name[strlen(file_name)-1]=='c' && file_name[strlen(file_name)-2]=='.'){
+            int no_errors = 0;
+            int no_warnings = 0;
+            int score=0;
+            close(pfd[1]);
+            char buff[10];
+            int check;
+            check=read(pfd[0], buff, 10);
+            if(check==-1){
+                perror("Nu se poate prelua info din pipe\n");
+                exit(3);
+            }
+            sscanf(buff, "%d %d", &no_errors, &no_warnings);
+            
+            if(no_errors==0) {
+                if(no_warnings==0){
+                    score=10;
+                }
+                else if(no_warnings>10){
+                    score=2;
+                }
+                else{
+                    score=2+8*(10-no_warnings)/10;
+                }
+            } 
+            else if(no_errors>=1) {
+                score=1;
+            }
+            int fd=open("grades.txt", O_RDWR);
+            if(fd==-1) {
+                printf("error for fd()");
+                exit(3);
+            }
+            char score_text[3];
+            score_text[0] = score/10+'0';
+            score_text[1] = score%10+'0';
+
+            char file_text[100];
+            strcpy(file_text, path);
+            strcat(file_text, " : ");
+            strcat(file_text, score_text);
+
+            int wrote=write(fd, file_text, strlen(file_text));
+            if(wrote==-1) {
+                printf("error at writting\n");
+                exit(3);
+            }
+            close(fd);
+        }
     }
-    
-}
+}          
 
 int count_lines(char path[]) {
     FILE *f=fopen(path, "r");
@@ -163,7 +201,6 @@ int count_lines(char path[]) {
         c=fgetc(f);
     }
     return no_lines;
-    printf("\n\n\n---------no_of_lines=%d\n\n\n", no_lines);
 }
 
 //directories part
@@ -217,8 +254,8 @@ void menu_symbolic_link() {
 //execute commands
 void options_regfile(char path[],  char commands[NUMBER_OF_COMMANDS]){
     struct stat st;
-    if(stat(path, &st)==-1) {
-        printf("Error stat() for regular file in options_regularfile\n");
+    if(lstat(path, &st)==-1) {
+        printf("Error lstat() for regular file in options_regularfile\n");
         exit(1);
     }
 
@@ -266,7 +303,7 @@ void options_regfile(char path[],  char commands[NUMBER_OF_COMMANDS]){
 void options_dir(char path[], char commands[NUMBER_OF_COMMANDS]){
     struct stat st;
     if(stat(path, &st)==-1) {
-        printf("Error stat() for regular file in options_dir\n");
+        printf("Error stat() for directories in options_dir\n");
         exit(1);
     }
 
@@ -319,11 +356,10 @@ void options_dir(char path[], char commands[NUMBER_OF_COMMANDS]){
     }
 }
 
-
 void options_sym(char path[], char commands[NUMBER_OF_COMMANDS]){
     struct stat st; struct stat targeted_file;
     if(stat(path, &st)==-1) {
-        printf("Error stat() for regular file in options_\n");
+        printf("Error stat() for symbolic links in options_\n");
         exit(1);
     }
     char letters[5]="nldta";
@@ -387,7 +423,6 @@ void handle_regfile(char path[]){
         menu_regular_file();
         strcpy(commands, get_commands());
         options_regfile(path, commands);
-        exit(2);
     }
     else{
         int wstatus;
@@ -395,21 +430,7 @@ void handle_regfile(char path[]){
         if(WIFEXITED(wstatus)){
             printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
         }
-        pid_t pid_reg2=fork();
-        if(pid_reg2<0){
-            printf("error at fork() for child 1\n");
-            exit(3);
-        }
-        else if(pid_reg2==0){
-            c_file(path);
-        }
-        else{
-            int wstatus2;
-            pid_t w2=wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
-        }   
+        c_file(path);
     }
 }
 
@@ -425,7 +446,6 @@ void handle_dir(char path[]){
         menu_directories();
         strcpy(commands, get_commands());
         options_dir(path, commands);
-        exit(2);
     }
     else{
         int wstatus;
@@ -463,7 +483,6 @@ void handle_sym(char path[]){
         menu_symbolic_link();
         strcpy(commands, get_commands());
         options_sym(path, commands);
-        exit(2);
     }
     else{
         int wstatus;
@@ -490,7 +509,6 @@ void handle_sym(char path[]){
 }
 
 int main(int argc, char* argv[]){
-    print_error_distribution();
     if(argc<2){
         perror("There are not enough arguments");
         exit(1);
