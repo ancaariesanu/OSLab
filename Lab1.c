@@ -17,6 +17,7 @@
 
 //am terminat -> reg_file
 //            -> symbolic link
+//            -> director
 
 
 //prototypes
