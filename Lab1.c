@@ -11,14 +11,21 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-
-#define MAX_PATH_LENGHT 1024
 #define NUMBER_OF_COMMANDS 10
 
-//am terminat -> reg_file
-//            -> symbolic link
-//            -> director
-
+//------------------------------------------------EXIT CODES--------------------------------------------------------//
+//1->get_commands()                                          12->options_regfile()->creating symbolic link          //      
+//2->change_permissions()                                    13->options_dir()->stat() for directories              //
+//3->c_file()->pipe                                          14->options_sym()->stat() for symbolic links           //
+//4->c_file()->child proccess(pid2)                          15->options_sym()->delete the symbolic link            //  
+//5->c_file()->compiling .sh                                 16->options_sum()->stat() for print the size of target //                 
+//6->c_file()->read from pipe                                17->handle_regfile()->create process for reg file      //
+//7->c_file()->open file grades.txt                          18->handle_dir()->create process for dir               //
+//8->c_file()->write in grade.txt                            19->handle_dir()->fork_1                               //
+//9->count_lines()->open the .txt file to count lines        20->handle_sym()->create process sym                   //              
+//10->create_new_file()->creating file for directories part  21->handle_sym()->fork_1                               //      
+//11->options_regfile()->lstat() for regular file            22->main()->no arguments                               //
+//------------------------------------------------------------------------------------------------------------------//
 
 //prototypes
 void reset_commands(char path[]);
@@ -27,6 +34,22 @@ int count_lines(char path[]);
 void handle_regfile(char path[]);
 void handle_dir(char path[]);
 void handle_sym(char path[]);
+
+//wait function
+void wait_for_children(){
+    pid_t awaited_child;
+    int status;
+    for(int i=1;i<=2;i++){  
+        awaited_child = wait(&status);
+        if(WIFEXITED(status)){
+            printf("\nChild process with PID <%d> has ended with the code <%d>.\n", awaited_child, WEXITSTATUS(status));
+        }
+        else{
+            printf("\nChild process with PID <%d> has ended with the code <%d>.\n", awaited_child, WEXITSTATUS(status));
+        }
+    }
+}
+
 //check type of input && reenter commands && get_commands
 char* get_commands() {
     char *commands;
@@ -37,7 +60,7 @@ char* get_commands() {
     }
     printf("Please insert the options: ");
     scanf("%s", commands);
-
+    printf("\n");
     return commands;
 }
 
@@ -49,7 +72,7 @@ void reset_commands(char path[]) {
 void check_type(char path[]){  
     struct stat st;
     if(lstat(path, &st)==-1){
-        perror("There is a problem at lstat");
+        perror("There is a problem at lstat!\n");
     }
     switch (st.st_mode & S_IFMT){
         case S_IFREG:
@@ -62,7 +85,7 @@ void check_type(char path[]){
             handle_sym(path);
             break;
         default: 
-            printf("The file is an unknown one\n");
+            printf("The file is an unknown one!\n");
             break;
     }
 }
@@ -89,17 +112,16 @@ int change_permissions(char path[]) {
     int ok=0;
 
     if(changed == -1) {
-        printf("Error at changing permissions\n");
-        exit(3);
+        perror("Error at changing permissions!\n");
+        exit(2);
     }
     else{
-        printf("Permissions changed!\n");
-        ok=1;
+        printf("\nPermissions changed!\n");
     }
     return ok;
 }
 
-//C-file part -> merge
+//C-file part 
 void c_file(char path[]) {
     char file_name[1024];
     int lenght=strlen(path);
@@ -110,12 +132,12 @@ void c_file(char path[]) {
     int pfd[2];
     if(pipe(pfd)<0){
         perror("Pipe for c_file doesn't work!\n");
-        exit(1);
+        exit(3);
     }
     pid_t pid_reg2=fork();
     if(pid_reg2<0){
-        perror("pid_reg2 nu e creat\n");
-        exit(2);
+        perror("Pid_reg2 nu e creat\n");
+        exit(4);
     }
     else if(pid_reg2==0){
         if(file_name[strlen(file_name)-1]=='c' && file_name[strlen(file_name)-2]=='.') {
@@ -123,17 +145,18 @@ void c_file(char path[]) {
             dup2(pfd[1], 1);
             int check=execlp("bash", "bash", "error_counter.sh", file_name, NULL);
             if(check==-1){
-                perror("Couldn't compile the .sh file\n");
-                exit(3);
+                perror("\nCouldn't compile the .sh file\n");
+                exit(5);
             }
-            
         }
         else {
             int lines=count_lines(path)+1;
-            printf("Number of lines: %d\n", lines);
+            printf("\nNumber of lines: %d\n", lines);
         }
+        exit(EXIT_SUCCESS);
     }
     else {
+        wait_for_children();
         if(file_name[strlen(file_name)-1]=='c' && file_name[strlen(file_name)-2]=='.'){
             int no_errors = 0;
             int no_warnings = 0;
@@ -143,12 +166,11 @@ void c_file(char path[]) {
             int check;
             check=read(pfd[0], buff, 10);
             if(check==-1){
-                perror("Nu se poate prelua info din pipe\n");
-                exit(3);
+                perror("\nCouldn't read from pipe!\n");
+                exit(6);
             }
             sscanf(buff, "%d %d", &no_errors, &no_warnings);
-            
-            if(no_errors==0) {
+            if(no_errors==0){
                 if(no_warnings==0){
                     score=10;
                 }
@@ -162,10 +184,10 @@ void c_file(char path[]) {
             else if(no_errors>=1) {
                 score=1;
             }
-            int fd=open("grades.txt", O_RDWR);
-            if(fd==-1) {
-                printf("error for fd()");
-                exit(3);
+            int f=open("grades.txt", O_RDWR);
+            if(f==-1) {
+                printf("\nError for opening f()\n");
+                exit(7);
             }
             char score_text[3];
             score_text[0] = score/10+'0';
@@ -176,12 +198,12 @@ void c_file(char path[]) {
             strcat(file_text, " : ");
             strcat(file_text, score_text);
 
-            int wrote=write(fd, file_text, strlen(file_text));
+            int wrote=write(f, file_text, strlen(file_text));
             if(wrote==-1) {
-                printf("error at writting\n");
-                exit(3);
+                printf("\nError at writting\n");
+                exit(8);
             }
-            close(fd);
+            close(f);
         }
     }
 }          
@@ -190,7 +212,7 @@ int count_lines(char path[]) {
     FILE *f=fopen(path, "r");
     if(f==NULL) {
         printf("Error at opening file\n");
-        exit(3);
+        exit(9);
     }
     char c;
     int no_lines=0;
@@ -218,8 +240,8 @@ void create_new_file(char name[]) {
 
     int created=creat(path, S_IRUSR);
     if(created==-1) {
-        printf("error at creating file\n");
-        exit(2);
+        printf("\nError at creating file for directories part!\n");
+        exit(10);
     }
     close(created);
 }
@@ -256,14 +278,14 @@ void menu_symbolic_link() {
 void options_regfile(char path[],  char commands[NUMBER_OF_COMMANDS]){
     struct stat st;
     if(lstat(path, &st)==-1) {
-        printf("Error lstat() for regular file in options_regularfile\n");
-        exit(1);
+        printf("\nError lstat() for regular file in options_regfile\n");
+        exit(11);
     }
 
     char letters[6]="ndhmal";
     for(int i=1;i<strlen(commands);i++) {
         if(strchr(letters, commands[i])==NULL) {
-            printf("You entered a command that is not in the options menu\n");
+            printf("\nYou entered a command that is not in the options menu\n");
             reset_commands(path);
         }
     }
@@ -294,7 +316,7 @@ void options_regfile(char path[],  char commands[NUMBER_OF_COMMANDS]){
                 }
                 else {
                     printf("Error creating the symlink\n");
-                    exit(1);
+                    exit(12);
                 }
                 break;
         }
@@ -305,7 +327,7 @@ void options_dir(char path[], char commands[NUMBER_OF_COMMANDS]){
     struct stat st;
     if(stat(path, &st)==-1) {
         printf("Error stat() for directories in options_dir\n");
-        exit(1);
+        exit(13);
     }
 
     char letters[4]="ndac";
@@ -338,10 +360,10 @@ void options_dir(char path[], char commands[NUMBER_OF_COMMANDS]){
             printf("You choose to print the total number of files with the C extension\n");
             int counter=0; DIR* d;
             struct dirent* dir;
-            char* extension=".c";
-            if((d=opendir("."))!=NULL){
+            
+            if((d=opendir(path))!=NULL){
                 while((dir=readdir(d))!=NULL){
-                    if(strstr(dir->d_name, extension)!=NULL) counter++;
+                    if(dir->d_name[strlen(dir->d_name)-2]=='.' && dir->d_name[strlen(dir->d_name)-1]=='c') counter++;
                 }
                 closedir(d);
                 printf("Number of files with C extension is %d\n", counter);
@@ -359,9 +381,10 @@ void options_dir(char path[], char commands[NUMBER_OF_COMMANDS]){
 
 void options_sym(char path[], char commands[NUMBER_OF_COMMANDS]){
     struct stat st; struct stat targeted_file;
+    int deleted=0;
     if(stat(path, &st)==-1) {
         printf("Error stat() for symbolic links in options_\n");
-        exit(1);
+        exit(14);
     }
     char letters[5]="nldta";
     for(int i=1;i<strlen(commands);i++) {
@@ -374,35 +397,57 @@ void options_sym(char path[], char commands[NUMBER_OF_COMMANDS]){
         switch (commands[i]){
             case 'n':
                 printf("You choose to print the link name\n");
-                printf("Name of the file: %s\n", path);
+                if(deleted==0){
+                    printf("Name of the file: %s\n", path);
+                }
+                else{
+                    printf("The symbolic link was deleted and you can not perform any operation\n");
+                }
                 break;
             
             case 'l':
-                printf("You choose to delete link\n");
+                printf("You choose to delete the symbolic link\n");
                 if(unlink(path)==-1) {
-                        exit(1);
-                        }
-                        else {
-                            printf("Successfully delete the symbolic link\n");
-                        }
+                    printf("\nCouldn't delete the symbolic link!\n");
+                    exit(15);
+                }
+                else {
+                    printf("\nSuccessfully delete the symbolic link!\n");
+                }
+                deleted=1;
                 break;
 
             case 'd':
                 printf("You choose to print the size of the link\n");
-                printf("Size of the symbolic link: %ld\n", st.st_size);
+                if(deleted==0){
+                    printf("Size of the symbolic link: %ld\n", st.st_size);
+                } 
+                else{
+                    printf("The symbolic link was deleted and you can not perform any operation\n");
+                }
                 break;
 
             case 't': 
                 printf("You choose to print the size of the target\n");
-                if(stat(path, &targeted_file)==-1) {
-                        exit(1);
+                if(deleted==0){
+                    if(stat(path, &targeted_file)==-1) {
+                        exit(16);
                     }
-                printf("Size of the targeted file: %ld\n", targeted_file.st_size);
+                    printf("Size of the targeted file: %ld\n", targeted_file.st_size);
+                }
+                else{
+                    printf("The symbolic link was deleted and you can not perform any operation\n");
+                }
                 break;
 
             case 'a':
                 printf("You choose to print the access rights\n");
-                print_access_rights(st.st_mode);
+                if(deleted==0){
+                    print_access_rights(st.st_mode);
+                }
+                else{
+                    printf("The symbolic link was deleted and you can not perform any operation\n");
+                }
                 break;
 
             default:
@@ -414,105 +459,89 @@ void options_sym(char path[], char commands[NUMBER_OF_COMMANDS]){
 //handle each type 
 void handle_regfile(char path[]){
     char commands[NUMBER_OF_COMMANDS];
+    printf("\n------------------------------------------------\n");
     printf("%s is a regular file. \n", path);
     pid_t pid_reg=fork();
     if(pid_reg<0){
-        perror("There is a problem with with creating the process for the regular file");
-        exit(1);
+        perror("\nThere is a problem with with creating the process for the regular file!\n");
+        exit(17);
     }
     else if(pid_reg==0){
         menu_regular_file();
         strcpy(commands, get_commands());
         options_regfile(path, commands);
+        exit(EXIT_SUCCESS);
     }
     else{
-        int wstatus;
-        pid_t w=wait(&wstatus);
-        if(WIFEXITED(wstatus)){
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-        }
         c_file(path);
     }
 }
 
 void handle_dir(char path[]){
     char commands[NUMBER_OF_COMMANDS];
+    printf("\n------------------------------------------------\n");
     printf("%s is a directory. \n", path);
     pid_t pid_dir=fork();
     if(pid_dir<0){
-        perror("There is a problem with with creating the process for the directory");
-        exit(1);
+        perror("\nThere is a problem with with creating the process for the directory!\n");
+        exit(18);
     }
     else if(pid_dir==0){
         menu_directories();
         strcpy(commands, get_commands());
         options_dir(path, commands);
+        exit(EXIT_SUCCESS);
     }
     else{
-        int wstatus;
-        pid_t w=wait(&wstatus);
-        if(WIFEXITED(wstatus)){
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-        }
         pid_t pid_dir2=fork();
         if(pid_dir2<0){
-            printf("error at fork() for child 1\n");
-            exit(3);
+            printf("\nError at fork() for child 1(dir)!\n");
+            exit(19);
         }
         else if(pid_dir2==0){
             create_new_file(path);
         }
         else{
-            int wstatus2;
-            pid_t w2=wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
+            wait_for_children();
         }   
     }
 }
 
 void handle_sym(char path[]){
     char commands[NUMBER_OF_COMMANDS];
+    printf("\n------------------------------------------------\n");
     printf("%s is a symbolic link. \n", path);
     pid_t pid_sym=fork();
     if(pid_sym<0){
-        perror("There is a problem with with creating the process for the symbolic link");
-        exit(1);
+        perror("\nThere is a problem with with creating the process for the symbolic link!\n");
+        exit(20);
     }
     else if(pid_sym==0){
         menu_symbolic_link();
         strcpy(commands, get_commands());
         options_sym(path, commands);
+        exit(EXIT_SUCCESS);
     }
     else{
-        int wstatus;
-        pid_t w=wait(&wstatus);
-        if(WIFEXITED(wstatus)){
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-        }
         pid_t pid_sym2=fork();
         if(pid_sym2<0){
-            printf("error at fork() for child 1\n");
-            exit(3);
+            printf("\nError at fork() for child 1(sym)!\n");
+            exit(21);
         }
         else if(pid_sym2==0){
             change_permissions(path);
+            //exit(EXIT_SUCCESS);
         }
         else{
-            int wstatus2;
-            pid_t w2=wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
+            wait_for_children();
         }   
     }
 }
 
 int main(int argc, char* argv[]){
     if(argc<2){
-        perror("There are not enough arguments");
-        exit(1);
+        perror("\nThere are not enough arguments!\n");
+        exit(22);
     }
     for(int i=1;i<argc; i++){
         check_type(argv[i]);
