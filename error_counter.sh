@@ -15,5 +15,5 @@ then
     echo "$errors $warnings"
 
 else
-    echo "OK"
+    echo "OK!"
 fi 
